@@ -69,13 +69,16 @@ bitflags::bitflags! {
 #[cfg_attr(target_arch = "x86_64", repr(packed))]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Event<T: Into<u64>> {
-    pub config: CtlConfig,
+    pub config: u32,
     pub data: T,
 }
 
 impl<T: Into<u64>> Event<T> {
     pub fn new(config: CtlConfig, data: T) -> Event<T> {
-        Self { config, data }
+        Self {
+            config: config.bits(),
+            data,
+        }
     }
 }
 

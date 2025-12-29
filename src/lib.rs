@@ -175,7 +175,7 @@ impl Events {
 }
 
 #[repr(i32)]
-pub enum CtlOperation {
+enum CtlOperation {
     Add = libc::EPOLL_CTL_ADD,
     Mod = libc::EPOLL_CTL_MOD,
     Del = libc::EPOLL_CTL_DEL,
@@ -184,8 +184,8 @@ pub enum CtlOperation {
 #[repr(C)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Event {
-    pub config: u32,
-    pub data: u64,
+    config: u32,
+    data: u64,
 }
 
 impl Event {

@@ -24,7 +24,7 @@ bitflags::bitflags! {
         /// Monitor for hang up (always monitored automatically, but can be explicit)
         const HANG_UP = libc::EPOLLHUP as u32;
         /// Monitor for peer closing their write end (graceful shutdown detection)
-        const READ_CLOSED = libc::EPOLLRDHUP as u32;
+        const CLOSED = libc::EPOLLRDHUP as u32;
 
         /// Use edge-triggered mode (only notify on state changes)
         const EDGE_TRIGGERED = libc::EPOLLET as u32;
@@ -34,6 +34,74 @@ bitflags::bitflags! {
         const EXCLUSIVE = libc::EPOLLEXCLUSIVE as u32;
         /// Prevent system suspend while handling events (requires CAP_BLOCK_SUSPEND)
         const WAKE_UP = libc::EPOLLWAKEUP as u32;
+    }
+}
+
+impl Default for Interest {
+    fn default() -> Self {
+        Self(0.into())
+    }
+}
+
+impl Interest {
+    #[inline]
+    pub fn readable(mut self) -> Self {
+        self |= Self::READ;
+        self
+    }
+
+    #[inline]
+    pub fn writable(mut self) -> Self {
+        self |= Self::WRITE;
+        self
+    }
+
+    #[inline]
+    pub fn urgent(mut self) -> Self {
+        self |= Self::URGENT;
+        self
+    }
+
+    #[inline]
+    pub fn error(mut self) -> Self {
+        self |= Self::ERROR;
+        self
+    }
+
+    #[inline]
+    pub fn hang_up(mut self) -> Self {
+        self |= Self::HANG_UP;
+        self
+    }
+
+    #[inline]
+    pub fn closed(mut self) -> Self {
+        self |= Self::CLOSED;
+        self
+    }
+
+    #[inline]
+    pub fn edge_triggered(mut self) -> Self {
+        self |= Self::EDGE_TRIGGERED;
+        self
+    }
+
+    #[inline]
+    pub fn one_shot(mut self) -> Self {
+        self |= Self::ONE_SHOT;
+        self
+    }
+
+    #[inline]
+    pub fn exclusive(mut self) -> Self {
+        self |= Self::EXCLUSIVE;
+        self
+    }
+
+    #[inline]
+    pub fn wake_up(mut self) -> Self {
+        self |= Self::WAKE_UP;
+        self
     }
 }
 
@@ -53,6 +121,56 @@ bitflags::bitflags! {
         const HANG_UP = libc::EPOLLHUP as u32;
         /// Peer closed their write end
         const READ_CLOSED = libc::EPOLLRDHUP as u32;
+    }
+}
+
+impl Default for Events {
+    fn default() -> Self {
+        Self(0.into())
+    }
+}
+
+impl Events {
+    /// Check if the fd is readable
+    #[inline]
+    pub fn is_readable(self) -> bool {
+        self.contains(Self::READABLE)
+    }
+
+    /// Check if the fd is writable
+    #[inline]
+    pub fn is_writable(self) -> bool {
+        self.contains(Self::WRITABLE)
+    }
+
+    /// Check if there's urgent data
+    #[inline]
+    pub fn is_urgent(self) -> bool {
+        self.contains(Self::URGENT)
+    }
+
+    /// Check if there was an error
+    #[inline]
+    pub fn is_error(self) -> bool {
+        self.contains(Self::ERROR)
+    }
+
+    /// Check if the connection hung up
+    #[inline]
+    pub fn is_hang_up(self) -> bool {
+        self.contains(Self::HANG_UP)
+    }
+
+    /// Check if the peer closed their side
+    #[inline]
+    pub fn is_read_closed(self) -> bool {
+        self.contains(Self::READ_CLOSED)
+    }
+
+    /// Check if the connection is closed (either hang up or read closed)
+    #[inline]
+    pub fn is_closed(self) -> bool {
+        self.intersects(Self::HANG_UP | Self::READ_CLOSED)
     }
 }
 

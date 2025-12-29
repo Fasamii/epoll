@@ -68,13 +68,13 @@ bitflags::bitflags! {
 #[repr(C)]
 #[cfg_attr(target_arch = "x86_64", repr(packed))]
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub struct Event<T: Into<u64>> {
+pub struct Event {
     pub config: u32,
-    pub data: T,
+    pub data: RawFd,
 }
 
-impl<T: Into<u64>> Event<T> {
-    pub fn new(config: CtlConfig, data: T) -> Event<T> {
+impl Event {
+    pub fn new(config: CtlConfig, data: RawFd) -> Event {
         Self {
             config: config.bits(),
             data,
@@ -87,35 +87,37 @@ pub fn create(cloexec: bool) -> Result<RawFd> {
     unsafe { ok_or_get_error(libc::epoll_create1(flags)) }
 }
 
-pub fn ctl<T: Into<u64>>(
-    epoll_fd: RawFd,
-    operation: CtlOperation,
-    fd: RawFd,
-    mut config: Event<T>,
-) -> Result<()> {
-    let config = &mut config as *mut _ as *mut libc::epoll_event;
-    unsafe { ok_or_get_error(libc::epoll_ctl(epoll_fd, operation as i32, fd, config))? };
+pub fn ctl(epoll_fd: RawFd, operation: CtlOperation, fd: RawFd, config: Event) -> Result<()> {
+    let mut config = libc::epoll_event {
+        events: config.config,
+        u64: config.data as u64,
+    };
+    unsafe { ok_or_get_error(libc::epoll_ctl(epoll_fd, operation as i32, fd, &mut config))? };
     Ok(())
 }
 
-pub fn wait<T: Into<u64>>(
-    epoll_fd: RawFd,
-    timeout: Option<i32>,
-    buf: &mut [Event<T>],
-) -> Result<usize> {
+pub fn wait(epoll_fd: RawFd, timeout: Option<i32>, buf: &mut [Event]) -> Result<usize> {
     let timeout = timeout.unwrap_or(-1);
-    let buf = unsafe {
-        std::slice::from_raw_parts_mut(buf.as_mut_ptr() as *mut libc::epoll_event, buf.len())
-    };
-    let event_count = unsafe {
+    let mut sys = vec![libc::epoll_event { events: 0, u64: 0 }; buf.len()];
+    // let buffer = unsafe {
+    //     std::slice::from_raw_parts_mut(buf.as_mut_ptr() as *mut libc::epoll_event, buf.len())
+    // };
+
+    let n = unsafe {
         ok_or_get_error(libc::epoll_wait(
             epoll_fd,
-            buf.as_mut_ptr(),
-            buf.len() as i32,
+            sys.as_mut_ptr(),
+            sys.len() as i32,
             timeout,
         ))? as usize
     };
-    Ok(event_count)
+
+    for (dst, src) in buf.iter_mut().zip(sys.iter()).take(n) {
+        dst.config = src.events;
+        dst.data = src.u64 as RawFd;
+    }
+
+    Ok(n)
 }
 
 pub fn close(epoll_fd: RawFd) -> Result<()> {

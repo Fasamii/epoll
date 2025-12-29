@@ -52,7 +52,6 @@ bitflags::bitflags! {
         /// Hang up (connection closed)
         const HANG_UP = libc::EPOLLHUP as u32;
         /// Peer closed their write end
-    ///
         const READ_CLOSED = libc::EPOLLRDHUP as u32;
     }
 }

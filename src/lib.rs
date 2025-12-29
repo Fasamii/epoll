@@ -39,7 +39,7 @@ bitflags::bitflags! {
 
 impl Default for Interest {
     fn default() -> Self {
-        Self(0.into())
+        Self::empty()
     }
 }
 
@@ -126,7 +126,7 @@ bitflags::bitflags! {
 
 impl Default for Events {
     fn default() -> Self {
-        Self(0.into())
+        Self::empty()
     }
 }
 
@@ -185,19 +185,16 @@ pub enum CtlOperation {
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Event {
     pub config: u32,
-    pub data: RawFd,
+    pub data: u64,
 }
 
 impl Event {
-    pub fn new(config: Interest, data: RawFd) -> Event {
-        Self {
-            config: config.bits(),
-            data,
-        }
+    #[inline]
+    pub fn fd(&self) -> RawFd {
+        self.data as RawFd
     }
-}
 
-impl Event {
+    #[inline]
     pub fn events(self) -> Events {
         Events::from_bits_truncate(self.config)
     }
@@ -208,10 +205,22 @@ pub fn create(cloexec: bool) -> Result<RawFd> {
     unsafe { ok_or_get_error(libc::epoll_create1(flags)) }
 }
 
-pub fn ctl(epoll_fd: RawFd, operation: CtlOperation, fd: RawFd, config: Event) -> Result<()> {
+pub fn add_fd(epoll_fd: RawFd, fd: RawFd, interest: Interest) -> Result<()> {
+    ctl(epoll_fd, CtlOperation::Add, fd, interest)
+}
+
+pub fn mod_fd(epoll_fd: RawFd, fd: RawFd, interest: Interest) -> Result<()> {
+    ctl(epoll_fd, CtlOperation::Mod, fd, interest)
+}
+
+pub fn del_fd(epoll_fd: RawFd, fd: RawFd) -> Result<()> {
+    ctl(epoll_fd, CtlOperation::Del, fd, Interest::empty())
+}
+
+fn ctl(epoll_fd: RawFd, operation: CtlOperation, fd: RawFd, interest: Interest) -> Result<()> {
     let mut config = libc::epoll_event {
-        events: config.config,
-        u64: config.data as u64,
+        events: interest.bits(),
+        u64: fd as u64,
     };
     unsafe { ok_or_get_error(libc::epoll_ctl(epoll_fd, operation as i32, fd, &mut config))? };
     Ok(())
@@ -219,24 +228,20 @@ pub fn ctl(epoll_fd: RawFd, operation: CtlOperation, fd: RawFd, config: Event) -
 
 pub fn wait(epoll_fd: RawFd, timeout: Option<i32>, buf: &mut [Event]) -> Result<usize> {
     let timeout = timeout.unwrap_or(-1);
-    let mut sys = vec![libc::epoll_event { events: 0, u64: 0 }; buf.len()];
-    // let buffer = unsafe {
-    //     std::slice::from_raw_parts_mut(buf.as_mut_ptr() as *mut libc::epoll_event, buf.len())
-    // };
+
+    // Cast the buffer directly (same memory layout after fixing Event)
+    let sys_buf = unsafe {
+        std::slice::from_raw_parts_mut(buf.as_mut_ptr() as *mut libc::epoll_event, buf.len())
+    };
 
     let n = unsafe {
         ok_or_get_error(libc::epoll_wait(
             epoll_fd,
-            sys.as_mut_ptr(),
-            sys.len() as i32,
+            sys_buf.as_mut_ptr(),
+            sys_buf.len() as i32,
             timeout,
         ))? as usize
     };
-
-    for (dst, src) in buf.iter_mut().zip(sys.iter()).take(n) {
-        dst.config = src.events;
-        dst.data = src.u64 as RawFd;
-    }
 
     Ok(n)
 }

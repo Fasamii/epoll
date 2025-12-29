@@ -17,16 +17,22 @@ bitflags::bitflags! {
         const READ = libc::EPOLLIN as u32;
         /// Monitor for ready to write without blocking
         const WRITE = libc::EPOLLOUT as u32;
-        /// Monitor for urgent out-of-band data
+        /// Monitor for urgent out-of-band data (TCP OOB data, rarely used)
         const URGENT = libc::EPOLLPRI as u32;
+        /// Monitor for error conditions (always monitored automatically, but can be explicit)
+        const ERROR = libc::EPOLLERR as u32;
+        /// Monitor for hang up (always monitored automatically, but can be explicit)
+        const HANG_UP = libc::EPOLLHUP as u32;
+        /// Monitor for peer closing their write end (graceful shutdown detection)
+        const READ_CLOSED = libc::EPOLLRDHUP as u32;
 
         /// Use edge-triggered mode (only notify on state changes)
         const EDGE_TRIGGERED = libc::EPOLLET as u32;
         /// One-shot mode (automatically disable after one event)
         const ONE_SHOT = libc::EPOLLONESHOT as u32;
-        /// Exclusive wakeup (wake only one epoll instance)
+        /// Exclusive wakeup (wake only one epoll instance, not all)
         const EXCLUSIVE = libc::EPOLLEXCLUSIVE as u32;
-        /// Prevent system suspend while handling events
+        /// Prevent system suspend while handling events (requires CAP_BLOCK_SUSPEND)
         const WAKE_UP = libc::EPOLLWAKEUP as u32;
     }
 }
@@ -46,6 +52,7 @@ bitflags::bitflags! {
         /// Hang up (connection closed)
         const HANG_UP = libc::EPOLLHUP as u32;
         /// Peer closed their write end
+    ///
         const READ_CLOSED = libc::EPOLLRDHUP as u32;
     }
 }

@@ -190,6 +190,11 @@ pub struct Event {
 
 impl Event {
     #[inline]
+    pub fn blank() -> Self {
+        Self { config: 0, data: 0 }
+    }
+
+    #[inline]
     pub fn fd(&self) -> RawFd {
         self.data as RawFd
     }
@@ -229,7 +234,6 @@ fn ctl(epoll_fd: RawFd, operation: CtlOperation, fd: RawFd, interest: Interest) 
 pub fn wait(epoll_fd: RawFd, timeout: Option<i32>, buf: &mut [Event]) -> Result<usize> {
     let timeout = timeout.unwrap_or(-1);
 
-    // Cast the buffer directly (same memory layout after fixing Event)
     let sys_buf = unsafe {
         std::slice::from_raw_parts_mut(buf.as_mut_ptr() as *mut libc::epoll_event, buf.len())
     };

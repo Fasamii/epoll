@@ -182,6 +182,7 @@ enum CtlOperation {
 }
 
 #[repr(C)]
+#[cfg_attr(target_arch = "x86_64", repr(packed))]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Event {
     config: u32,
